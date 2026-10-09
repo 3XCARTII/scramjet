@@ -10,7 +10,10 @@ export const AVAILABLE_TRANSPORTS: ReadonlyArray<{
 	{ value: "epoxy", label: "Epoxy" },
 ];
 const DEFAULT_WISP_URL = import.meta.env.VITE_WISP_URL;
-const DEFAULT_TRANSPORT: AvailableTransports = "libcurl";
+// Libcurl reports native connection failures as error code 7 in browser previews.
+// Epoxy uses the same Wisp endpoint with a browser-friendly transport and is the
+// safer default for the demo; Libcurl remains available in Settings.
+const DEFAULT_TRANSPORT: AvailableTransports = "epoxy";
 const DEFAULT_HOME_URL = "https://google.com";
 const DEFAULT_MAX_REQUESTS = 200;
 

@@ -11,7 +11,7 @@ import { ScramjetHeaders } from "@/shared/headers";
 import { HtmlRewriterHooks, ScramjetContext } from "@/shared";
 import { Tap, TapInstance } from "@/Tap";
 import { doHandleFetch } from "./fetch";
-import { _URL, _Map } from "@/shared/snapshot";
+import { _URL } from "@/shared/snapshot";
 
 export interface ScramjetFetchRequest {
 	rawUrl: URL;
@@ -110,7 +110,7 @@ export class ScramjetFetchHandler extends EventTarget {
 	public crossOriginIsolated: boolean = false;
 	public context: ScramjetContext;
 
-	public trackedClients = new _Map<string, ScramjetFetchTrackedClient>();
+	public trackedClients: Map<string, ScramjetFetchTrackedClient> = new Map();
 
 	public hooks: {
 		rewriter: {

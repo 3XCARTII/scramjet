@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, chmodSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync, chmodSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -226,6 +226,17 @@ const bootstrapdir = join(__dirname, "packages/bootstrap");
 const createproxyappdir = join(__dirname, "packages/create-proxy-app");
 
 const wasmPath = join(scramjetdir, "dist/scramjet.wasm");
+
+// Rspack loads this config before package lifecycle hooks are guaranteed to run.
+// Recover the published artifact here so clean CI checkouts do not fail during config evaluation.
+if (!existsSync(wasmPath)) {
+	const ensureWasmScript = join(__dirname, "scripts/ensure-rewriter-wasm.mjs");
+	execSync(`${process.execPath} ${JSON.stringify(ensureWasmScript)}`, {
+		cwd: __dirname,
+		stdio: "inherit",
+	});
+}
+
 let wasmB64: string;
 const wasmBuf = await readFile(wasmPath);
 wasmB64 = wasmBuf.toString("base64");
