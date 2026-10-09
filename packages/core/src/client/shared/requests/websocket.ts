@@ -82,49 +82,58 @@ export default function (client: ScramjetClient, self: GlobalThis) {
 				onerror: null,
 			};
 
-			function fakeEventSend(fakeev: Event) {
-				state["on" + fakeev.type]?.(trustEvent(fakeev));
-				fakeWebSocket.dispatchEvent(fakeev);
-			}
+				let active = true;
+				const fakeEventSend = (fakeev: Event) => {
+					if (!active) return;
+					state["on" + fakeev.type]?.(trustEvent(fakeev));
+					fakeWebSocket.dispatchEvent(fakeev);
+				};
 
-			barews.addEventListener("open", () => {
-				fakeEventSend(new Event("open"));
-			});
-			barews.addEventListener("close", (ev) => {
-				fakeEventSend(new CloseEvent("close", ev));
-			});
-			barews.addEventListener("message", async (ev) => {
-				let payload = ev.data;
-				if (typeof payload === "string") {
-					// DO NOTHING
-				} else if ("byteLength" in payload) {
-					// arraybuffer, convert to blob if needed or set the proper prototype
-					if (state.binaryType === "blob") {
-						payload = new Blob([payload]);
+				const onOpen = () => fakeEventSend(new Event("open"));
+				const onClose = (ev: CloseEvent) => {
+					if (!active) return;
+					fakeEventSend(new CloseEvent("close", ev));
+					active = false;
+					barews.removeEventListener("open", onOpen);
+					barews.removeEventListener("close", onClose);
+					barews.removeEventListener("message", onMessage);
+					barews.removeEventListener("error", onError);
+				};
+			const onMessage = (ev: MessageEvent) => {
+					let payload = ev.data;
+					if (typeof payload === "string") {
+						dispatchMessage(payload, ev);
+					} else if ("byteLength" in payload) {
+						if (state.binaryType === "blob") payload = new Blob([payload]);
+						else Object_setPrototypeOf(payload, ArrayBuffer.prototype);
+						dispatchMessage(payload, ev);
+					} else if ("arrayBuffer" in payload && state.binaryType === "arraybuffer") {
+						void payload.arrayBuffer().then((buffer) => {
+							if (active) {
+								Object_setPrototypeOf(buffer, ArrayBuffer.prototype);
+								dispatchMessage(buffer, ev);
+							}
+						});
 					} else {
-						Object_setPrototypeOf(payload, ArrayBuffer.prototype);
+						dispatchMessage(payload, ev);
 					}
-				} else if ("arrayBuffer" in payload) {
-					// blob, convert to arraybuffer if neccesary.
-					if (state.binaryType === "arraybuffer") {
-						payload = await payload.arrayBuffer();
-						Object_setPrototypeOf(payload, ArrayBuffer.prototype);
-					}
-				}
+				};
+			const dispatchMessage = (payload: unknown, ev: MessageEvent) => {
+					if (!active) return;
+					fakeEventSend(new MessageEvent("message", {
+						data: payload,
+						origin: ev.origin,
+						lastEventId: ev.lastEventId,
+						source: ev.source,
+						ports: ev.ports,
+					}));
+			};
+			const onError = () => fakeEventSend(new Event("error"));
 
-				const fakeev = new MessageEvent("message", {
-					data: payload,
-					origin: ev.origin,
-					lastEventId: ev.lastEventId,
-					source: ev.source,
-					ports: ev.ports,
-				});
-
-				fakeEventSend(fakeev);
-			});
-			barews.addEventListener("error", () => {
-				fakeEventSend(new Event("error"));
-			});
+				barews.addEventListener("open", onOpen);
+				barews.addEventListener("close", onClose);
+				barews.addEventListener("message", onMessage);
+				barews.addEventListener("error", onError);
 
 			socketmap.set(fakeWebSocket, state);
 			ctx.return(fakeWebSocket);

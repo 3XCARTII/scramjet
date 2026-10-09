@@ -30,10 +30,21 @@ const version = packagejson.version;
 
 const DEMO_PORT = process.env.DEMO_PORT || 4141;
 const WISP_PORT = process.env.WISP_PORT || 4142;
-const hasExternalWispUrl = Boolean(process.env.VITE_WISP_URL);
+const configuredWispUrl = process.env.VITE_WISP_URL
+  ? normalizeWebsocketUrl(process.env.VITE_WISP_URL)
+  : undefined;
+
+// A loopback URL is only valid for the local dev server. Treat it as unset so
+// the URL is updated when the Wisp server moves to an available port.
+const hasExternalWispUrl = Boolean(
+  configuredWispUrl &&
+    !["localhost", "127.0.0.1", "::1"].includes(
+      new URL(configuredWispUrl).hostname,
+    ),
+);
 
 if (hasExternalWispUrl) {
-  process.env.VITE_WISP_URL = normalizeWebsocketUrl(process.env.VITE_WISP_URL);
+  process.env.VITE_WISP_URL = configuredWispUrl;
 } else {
   process.env.VITE_WISP_URL = `ws://localhost:${WISP_PORT}/`;
 }
