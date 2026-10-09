@@ -91,17 +91,15 @@ export default function (client: ScramjetClient, self: GlobalThis) {
 					fakeWebSocket.dispatchEvent(fakeev);
 				};
 
-				const cleanup = () => {
-					if (closeQueued) return;
-					closeQueued = true;
-					queueMicrotask(() => {
-						active = false;
-						barews.removeEventListener("open", onOpen);
-						barews.removeEventListener("close", onClose);
-						barews.removeEventListener("message", onMessage);
-						barews.removeEventListener("error", onError);
-					});
-				};
+			const cleanup = () => {
+				if (closeQueued) return;
+				closeQueued = true;
+				// Keep the transport callbacks registered. Epoxy-backed sockets dispatch
+				// events asynchronously from WASM; removing a callback while an event is
+				// queued can drop its wasm-bindgen closure before the dispatch completes.
+				// The active guard prevents any late event from reaching the page.
+				active = false;
+			};
 				const onOpen = () => fakeEventSend(new Event("open"));
 				const onClose = (ev: CloseEvent) => {
 					if (!active) return;
