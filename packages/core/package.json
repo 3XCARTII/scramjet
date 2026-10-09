@@ -12,6 +12,7 @@
 		"url": "https://github.com/MercuryWorkshop/scramjet"
 	},
 	"scripts": {
+		"prebuild": "node ../../scripts/ensure-rewriter-wasm.mjs",
 		"build": "cd ../.. && rspack build --mode production",
 		"rewriter:build": "cd rewriter/wasm/ && bash build.sh && cd ../../",
 		"format": "prettier --write .",
