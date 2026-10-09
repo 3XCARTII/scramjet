@@ -9,54 +9,93 @@ import { createServer } from "vite";
 //@ts-expect-error no typedefs
 import { server as wisp } from "@mercuryworkshop/wisp-js/server";
 import {
-	normalizeWebsocketUrl,
-	warnOnUrlEscape,
-	runRspack,
-	black,
-	printBanner,
+  normalizeWebsocketUrl,
+  warnOnUrlEscape,
+  runRspack,
+  black,
+  printBanner,
 } from "./devlib.ts";
 import rspackConfig from "./rspack.config.ts";
 
 const image = await fs.readFile("./assets/scramjet-mini-noalpha.png");
 
 const commit = execSync("git rev-parse --short HEAD", {
-	encoding: "utf-8",
+  encoding: "utf-8",
 }).replace(/\r?\n|\r/g, "");
 const branch = execSync("git rev-parse --abbrev-ref HEAD", {
-	encoding: "utf-8",
+  encoding: "utf-8",
 }).replace(/\r?\n|\r/g, "");
 const packagejson = JSON.parse(await fs.readFile("./package.json", "utf-8"));
 const version = packagejson.version;
 
 const DEMO_PORT = process.env.DEMO_PORT || 4141;
 const WISP_PORT = process.env.WISP_PORT || 4142;
+const hasExternalWispUrl = Boolean(process.env.VITE_WISP_URL);
 
-if (process.env.VITE_WISP_URL) {
-	process.env.VITE_WISP_URL = normalizeWebsocketUrl(process.env.VITE_WISP_URL);
+if (hasExternalWispUrl) {
+  process.env.VITE_WISP_URL = normalizeWebsocketUrl(process.env.VITE_WISP_URL);
 } else {
-	process.env.VITE_WISP_URL = `ws://localhost:${WISP_PORT}/`;
+  process.env.VITE_WISP_URL = `ws://localhost:${WISP_PORT}/`;
 }
 
 const wispserver = http.createServer((req, res) => {
-	res.writeHead(200, { "Content-Type": "text/plain" });
-	res.end("wisp server js rewrite");
+  res.writeHead(200, { "Content-Type": "text/plain" });
+  res.end("wisp server js rewrite");
 });
 wisp.options.allow_private_ips = true;
 wisp.options.allow_loopback_ips = true;
 
 wispserver.on("upgrade", (req, socket, head) => {
-	wisp.routeRequest(req, socket, head);
+  wisp.routeRequest(req, socket, head);
 });
 
-wispserver.listen(Number(WISP_PORT));
+const listenOnAvailablePort = async (
+  server: typeof wispserver,
+  requestedPort: number,
+) => {
+  let port = requestedPort;
+
+  while (true) {
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const onError = (error: NodeJS.ErrnoException) => {
+          server.off("listening", onListening);
+          reject(error);
+        };
+        const onListening = () => {
+          server.off("error", onError);
+          resolve();
+        };
+
+        server.once("error", onError);
+        server.once("listening", onListening);
+        server.listen(port);
+      });
+      return port;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EADDRINUSE") {
+        throw error;
+      }
+      port += 1;
+    }
+  }
+};
+
+const actualWispPort = await listenOnAvailablePort(
+  wispserver,
+  Number(WISP_PORT),
+);
+if (!hasExternalWispUrl) {
+  process.env.VITE_WISP_URL = `ws://localhost:${actualWispPort}/`;
+}
 
 const server = await createServer({
-	configFile: "./packages/demo/vite.config.ts",
-	root: "./packages/demo",
-	server: {
-		port: Number(DEMO_PORT),
-		strictPort: true,
-	},
+  configFile: "./packages/demo/vite.config.ts",
+  root: "./packages/demo",
+  server: {
+    port: Number(DEMO_PORT),
+    strictPort: true,
+  },
 });
 
 warnOnUrlEscape(server);
@@ -70,18 +109,18 @@ const note = (text: string) => chalk.hex("#CDB4DB")(text);
 const connector = chalk.hex("#8D99AE").dim("@");
 
 const lines = [
-	black()(`${highlight("SCRAMJET DEV SERVER")}`),
-	black()(
-		`${accent("demo")} ${connector} ${urlColor(
-			`http://localhost:${DEMO_PORT}/`
-		)}`
-	),
-	black()(
-		`${accent("wisp")} ${connector} ${urlColor(
-			process.env.VITE_WISP_URL ?? ""
-		)}`
-	),
-	black()(chalk.dim(`[${branch}] ${commit} scramjet/${version}`)),
+  black()(`${highlight("SCRAMJET DEV SERVER")}`),
+  black()(
+    `${accent("demo")} ${connector} ${urlColor(
+      `http://localhost:${DEMO_PORT}/`,
+    )}`,
+  ),
+  black()(
+    `${accent("wisp")} ${connector} ${urlColor(
+      process.env.VITE_WISP_URL ?? "",
+    )}`,
+  ),
+  black()(chalk.dim(`[${branch}] ${commit} scramjet/${version}`)),
 ];
 
 runRspack(rspackConfig);
