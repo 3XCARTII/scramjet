@@ -5,6 +5,7 @@
 		"emitDeclarationOnly": true,
 		"declarationDir": "./dist/types",
 		"skipLibCheck": true,
+		"noCheck": true,
 		"noEmitOnError": false,
 		"noEmit": false
 	},
