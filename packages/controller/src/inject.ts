@@ -23,7 +23,7 @@ import {
 	type ScramjetConfig,
 	type ScramjetContext,
 	type TrackedHistoryState,
-} from "@mercuryworkshop/scramjet";
+} from "@mercuryworkshop/scramjet/bundled";
 
 const MessagePort_postMessage = MessagePort.prototype.postMessage;
 const postMessage = (

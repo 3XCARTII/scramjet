@@ -19,7 +19,7 @@ import {
 	type ScramjetInterface,
 	type TrackedHistoryState,
 	Plugin,
-} from "@mercuryworkshop/scramjet";
+} from "@mercuryworkshop/scramjet/bundled";
 import { CONTROLLERFRAME } from "./symbols";
 import type {
 	FrameInitHooks,
