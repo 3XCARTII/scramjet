@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, copyFileSync, rmSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, readFileSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -35,10 +35,13 @@ try {
 
 	const publishedWasm = join(extractDir, "dist/scramjet.wasm");
 	if (!existsSync(publishedWasm)) {
-		throw new Error("published package does not contain dist/scramjet.wasm");
+		throw new Error(`published package does not contain dist/scramjet.wasm (tarball: ${dist.tarball})`);
 	}
 	mkdirSync(resolve(wasmPath, ".."), { recursive: true });
-	copyFileSync(publishedWasm, wasmPath);
+	writeFileSync(wasmPath, readFileSync(publishedWasm));
+	if (!existsSync(wasmPath)) {
+		throw new Error(`failed to write ${wasmPath}`);
+	}
 	console.log(`Recovered scramjet.wasm from @mercuryworkshop/scramjet@${packageJson.version}`);
 } finally {
 	rmSync(temp, { recursive: true, force: true });
