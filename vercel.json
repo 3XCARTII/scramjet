@@ -1,0 +1,5 @@
+{
+  "buildCommand": "pnpm --filter @mercuryworkshop/scramjet-demo... build",
+  "outputDirectory": "packages/demo/dist",
+  "installCommand": "pnpm install --frozen-lockfile"
+}
