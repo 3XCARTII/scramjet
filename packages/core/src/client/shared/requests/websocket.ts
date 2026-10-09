@@ -83,24 +83,33 @@ export default function (client: ScramjetClient, self: GlobalThis) {
 			};
 
 				let active = true;
+				let closeQueued = false;
 				const fakeEventSend = (fakeev: Event) => {
 					if (!active) return;
-					state["on" + fakeev.type]?.(trustEvent(fakeev));
+					const handler = state["on" + fakeev.type];
+					if (handler) handler.call(fakeWebSocket, trustEvent(fakeev));
 					fakeWebSocket.dispatchEvent(fakeev);
 				};
 
+				const cleanup = () => {
+					if (closeQueued) return;
+					closeQueued = true;
+					queueMicrotask(() => {
+						active = false;
+						barews.removeEventListener("open", onOpen);
+						barews.removeEventListener("close", onClose);
+						barews.removeEventListener("message", onMessage);
+						barews.removeEventListener("error", onError);
+					});
+				};
 				const onOpen = () => fakeEventSend(new Event("open"));
 				const onClose = (ev: CloseEvent) => {
 					if (!active) return;
 					fakeEventSend(new CloseEvent("close", ev));
-					active = false;
-					barews.removeEventListener("open", onOpen);
-					barews.removeEventListener("close", onClose);
-					barews.removeEventListener("message", onMessage);
-					barews.removeEventListener("error", onError);
+					cleanup();
 				};
-			const onMessage = (ev: MessageEvent) => {
-					let payload = ev.data;
+				const onMessage = (ev: MessageEvent) => {
+						let payload = ev.data;
 					if (typeof payload === "string") {
 						dispatchMessage(payload, ev);
 					} else if ("byteLength" in payload) {
@@ -128,7 +137,12 @@ export default function (client: ScramjetClient, self: GlobalThis) {
 						ports: ev.ports,
 					}));
 			};
-			const onError = () => fakeEventSend(new Event("error"));
+				let errorSent = false;
+				const onError = () => {
+					if (errorSent || !active) return;
+					errorSent = true;
+					fakeEventSend(new Event("error"));
+				};
 
 				barews.addEventListener("open", onOpen);
 				barews.addEventListener("close", onClose);
