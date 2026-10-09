@@ -108,12 +108,15 @@ async function init() {
 		try {
 			interstitial.close();
 		} catch {}
-		app.innerText =
-			"Failed to register service worker. Check console for details.";
+		interstitial.$.state.status =
+			"Service worker failed to initialize. Reload to retry.";
+		// Keep the application shell mounted so a transient service-worker or
+		// transport failure cannot leave the preview as a blank page.
+		console.error("[v0] Service worker initialization failed", e);
 	}
 }
 
-async function mount() {
+function mount() {
 	try {
 		const root = <App />;
 		app.replaceWith(root);
@@ -129,5 +132,8 @@ async function mount() {
 	}
 }
 
-init().then(() => mount());
+// Render the application shell immediately. Service-worker initialization is
+// asynchronous and should not prevent the preview from displaying its UI.
+mount();
+void init();
 export { controller, cachePlugin };
