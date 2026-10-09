@@ -93,14 +93,21 @@ const server = await createServer({
   configFile: "./packages/demo/vite.config.ts",
   root: "./packages/demo",
   server: {
+    // Let Vite move to the next available port when the preferred port is busy.
     port: Number(DEMO_PORT),
-    strictPort: true,
+    strictPort: false,
   },
 });
 
 warnOnUrlEscape(server);
 
 await server.listen();
+
+const demoAddress = server.httpServer?.address();
+const actualDemoPort =
+  typeof demoAddress === "object" && demoAddress !== null
+    ? demoAddress.port
+    : Number(DEMO_PORT);
 
 const accent = (text: string) => chalk.hex("#f1855bff").bold(text);
 const highlight = (text: string) => chalk.hex("#fdd76cff").bold(text);
@@ -112,7 +119,7 @@ const lines = [
   black()(`${highlight("SCRAMJET DEV SERVER")}`),
   black()(
     `${accent("demo")} ${connector} ${urlColor(
-      `http://localhost:${DEMO_PORT}/`,
+      `http://localhost:${actualDemoPort}/`,
     )}`,
   ),
   black()(
